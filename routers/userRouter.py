@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from Models.user_models import UserCreate, UserResponse, UserLogin
+from Models.user_models import UserCreate, UserResponse, UserLogin, UserUpdate
 from db import db
 from passlib.context import CryptContext
 from datetime import datetime
@@ -75,7 +75,7 @@ def login(user: UserLogin):
         updated_at=existing_user["updated_at"]
     )
 
-@router.get("/users/{userId}", response_model=List[UserResponse])
+@router.get("/users/by-userid/{userId}", response_model=List[UserResponse])
 def get_users_by_userId(userId: str):
     users_cursor = users_collection.find({"userId": userId})
     users_list = list(users_cursor)
@@ -95,3 +95,58 @@ def get_users_by_userId(userId: str):
         )
         for user in users_list
     ]
+
+@router.get("/users/by-clientid/{clientId}", response_model=UserResponse)
+def get_user_by_clientId(clientId: str):
+    user = users_collection.find_one({"clientId": clientId})
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return UserResponse(
+        userId=user["userId"],
+        clientId=user["clientId"],
+        name=user["name"],
+        email=user["email"],
+        role=user["role"],
+        created_at=user["created_at"],
+        updated_at=user["updated_at"]
+    )
+
+@router.delete("/users/remove/{clientId}")
+def delete_user_by_clientId(clientId: str):
+    result = users_collection.delete_one({"clientId": clientId})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "User deleted successfully"}
+
+@router.put("/users/update/{clientId}", response_model=UserResponse)
+def update_user_by_clientId(clientId: str, user_update: UserUpdate):
+
+    existing_user = users_collection.find_one({"clientId": clientId})
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = user_update.model_dump(exclude_unset=True)
+
+    if "password" in update_data:
+        update_data["password"] = pwd_context.hash(update_data["password"])
+
+    update_data["updated_at"] = datetime.utcnow()
+
+    users_collection.update_one(
+        {"clientId": clientId},
+        {"$set": update_data}
+    )
+
+    updated_user = users_collection.find_one({"clientId": clientId})
+
+    return UserResponse(
+        userId=updated_user["userId"],
+        clientId=updated_user["clientId"],
+        name=updated_user["name"],
+        email=updated_user["email"],
+        role=updated_user["role"],
+        created_at=updated_user["created_at"],
+        updated_at=updated_user["updated_at"]
+    )
