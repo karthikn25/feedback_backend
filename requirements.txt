@@ -7,3 +7,4 @@ apscheduler
 bcrypt
 pydantic[email]
 email-validator
+passlib[bcrypt]
