@@ -23,14 +23,20 @@ scheduler = BackgroundScheduler()
 def delete_old_feedback():
     async def _delete():
         try:
-            one_month_ago = datetime.utcnow() - timedelta(days=30)
-            result = await feedback_collection.delete_many({"created_at": {"$lt": one_month_ago}})
+            # one_month_ago = datetime.utcnow() - timedelta(days=30)
+            threshold = datetime.utcnow() - timedelta(minutes=3)
+            result = await feedback_collection.delete_many({"created_at": {"$lt": threshold}})
             print(f"[Scheduler] Deleted {result.deleted_count} old feedback at {datetime.utcnow()}")
         except Exception as e:
             print(f"[Scheduler] Error: {e}")
-    asyncio.run(_delete())
+    loop = asyncio.get_event_loop()
+    if loop.is_running():
+        asyncio.run_coroutine_threadsafe(_delete(), loop)
+    else:
+        loop.run_until_complete(_delete())
 
-scheduler.add_job(delete_old_feedback, "interval", days=1)
+# scheduler.add_job(delete_old_feedback, "interval", days=1)
+scheduler.add_job(delete_old_feedback, "interval", minutes=3)
 scheduler.start()
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
@@ -51,7 +57,8 @@ async def create_feedback(payload: Feedback):
         "rating": payload.rating.value,
         "feedbackMessage": payload.feedbackMessage,
         "created_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(days=30),
+        # "expires_at": datetime.utcnow() + timedelta(days=30),
+        "expires_at": datetime.utcnow() + timedelta(minutes=3),
     }
 
     result = await feedback_collection.insert_one(feedback_data)
@@ -59,7 +66,7 @@ async def create_feedback(payload: Feedback):
     return feedback_data
 
 
-@router.get("/")
+@router.get("/getall")
 async def get_all_feedback():
     feedbacks = []
     async for feedback in feedback_collection.find():
@@ -117,4 +124,4 @@ async def get_feedback_by_name(name: str):
     if not feedbacks:
         raise HTTPException(status_code=404, detail="No feedback found for this name")
 
-    return feedbacks
+    return feedbacks 
