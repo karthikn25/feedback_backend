@@ -5,6 +5,8 @@ from bson import ObjectId
 import asyncio
 import sys
 import os
+from zoneinfo import ZoneInfo
+IST = ZoneInfo("Asia/Kolkata")
 
 # ─── Fix module path ─────────────────────────────────────────────────────────
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,23 +22,22 @@ feedback_collection = db["feedback"]
 
 scheduler = BackgroundScheduler()
 
+main_loop = asyncio.get_event_loop()
+
 def delete_old_feedback():
     async def _delete():
         try:
-            # one_month_ago = datetime.utcnow() - timedelta(days=30)
-            threshold = datetime.utcnow() - timedelta(minutes=3)
-            result = await feedback_collection.delete_many({"created_at": {"$lt": threshold}})
-            print(f"[Scheduler] Deleted {result.deleted_count} old feedback at {datetime.utcnow()}")
+            result = await feedback_collection.delete_many(
+                {"expires_at": {"$lt": datetime.utcnow()}}
+            )
+            ist_time = datetime.now(IST).strftime("%Y-%m-%d %I:%M:%S %p IST")
+            print(f"[Scheduler] Deleted {result.deleted_count} old feedback at {ist_time}")
         except Exception as e:
             print(f"[Scheduler] Error: {e}")
-    loop = asyncio.get_event_loop()
-    if loop.is_running():
-        asyncio.run_coroutine_threadsafe(_delete(), loop)
-    else:
-        loop.run_until_complete(_delete())
 
-# scheduler.add_job(delete_old_feedback, "interval", days=1)
-scheduler.add_job(delete_old_feedback, "interval", minutes=3)
+    asyncio.run_coroutine_threadsafe(_delete(), main_loop)
+
+scheduler.add_job(delete_old_feedback, "interval", minutes=30)
 scheduler.start()
 
 # ─── Routes ──────────────────────────────────────────────────────────────────
