@@ -1,4 +1,8 @@
 fastapi
+uvicorn
+motor
 pymongo
-pyjwt
 python-dotenv
+apscheduler
+bcrypt
+pydantic
