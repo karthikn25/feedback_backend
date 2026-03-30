@@ -10,6 +10,14 @@ load_dotenv()
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # add your production URL here later
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Include only auth router
 app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 
