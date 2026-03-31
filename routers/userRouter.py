@@ -32,7 +32,8 @@ async def signup(user: UserCreate):
 
         # 🔥 Validate password
         validate_password(user.password)
-
+        print("PASSWORD RECEIVED:", user.password)
+        print("PASSWORD LENGTH:", len(user.password))
         hashed_password = pwd_context.hash(user.password)
 
         new_user = {
